@@ -35,7 +35,7 @@ ifeq ($(user),)
 #Always root
 HOST_USER ?= root
 #HOST_UID ?= $(strip $(if $(shell id -u),$(shell id -u),4000))
-HOST_UID ?= $(strip $(if $(shell id -u),$(shell id -u),0))
+HOST_UID ?= 0
 else
 # allow override by adding user= and/ or uid=  (lowercase!).
 # uid= defaults to 0 if user= set (i.e. root).
@@ -54,25 +54,46 @@ export HOST_USER
 export HOST_UID
 
 # all our targets are phony (no files to check).
-.PHONY: docker-$(PROJECT_NAME)-shell docker-$(PROJECT_NAME)-help docker-$(PROJECT_NAME)-build docker-$(PROJECT_NAME)-rebuild docker-$(PROJECT_NAME)-clean docker-$(PROJECT_NAME)-prune
+.PHONY: run docker-$(PROJECT_NAME)-shell docker-$(PROJECT_NAME)-help docker-$(PROJECT_NAME)-build docker-$(PROJECT_NAME)-rebuild docker-$(PROJECT_NAME)-clean docker-$(PROJECT_NAME)-prune
 
 # suppress makes own output
 #.SILENT:
 
 # Regular Makefile part for buildpypi itself
+help: docker-$(PROJECT_NAME)-help
 docker-help: docker-$(PROJECT_NAME)-help
 
 docker-$(PROJECT_NAME)-help:
 	@echo ''
-	@echo 'Usage: make [TARGET] [EXTRA_ARGUMENTS]'
-	@echo 'make docker-*'
-	@echo '  docker-shell    	run docker --container-- for current user: $(HOST_USER)(uid=$(HOST_UID))'
-	@echo '  docker-build    	build docker --image-- for current user: $(HOST_USER)(uid=$(HOST_UID))'
-	@echo '  docker-clean    	remove docker --image-- for current user: $(HOST_USER)(uid=$(HOST_UID))'
-	@echo '  docker-prune    	shortcut for docker system prune -af. Cleanup inactive containers and cache.'
+	@echo 'Usage: make [TARGET]'
+	@echo ''
+	@echo '  make run'
+	@echo ''
+	@echo '  make docker-*'
+	@echo ''
+	@echo '  docker-shell    	'
+	@echo '  docker-build    	'
+	@echo '  docker-rebuild  	'
+	@echo '  docker-clean    	'
+	@echo '  docker-prune    	'
 	@echo ''
 	@echo 'Within VM:'
-	@echo 'make all'
+	@echo '  make all'
+	@echo ''
+	@echo 'Example commands:'
+	@echo ''
+	@echo '  make all'
+	@echo ''
+	@echo '  ./vanitygen '
+	@echo '  ./vanitygen -k -o KEYS/1BTC.keys 1BTC '
+	@echo ''
+	@echo ''
+	@echo '  touch KEYS/1SAT.keys'
+	@echo '  ./vanitygen -k -o KEYS/1SAT.keys 1SAT'
+	@echo ''
+	@echo ''
+
+run: docker-$(PROJECT_NAME)-shell
 
 docker-shell: docker-$(PROJECT_NAME)-shell
 
@@ -86,12 +107,14 @@ else
 endif
 
 docker-build: docker-$(PROJECT_NAME)-build
-
 docker-$(PROJECT_NAME)-build:
 	docker-compose build $(SERVICE_TARGET)
 
-docker-clean: docker-$(PROJECT_NAME)-clean
+docker-rebuild: docker-$(PROJECT_NAME)-rebuild
+docker-$(PROJECT_NAME)-rebuild:
+	docker-compose build --no-cache $(SERVICE_TARGET)
 
+docker-clean: docker-$(PROJECT_NAME)-clean
 docker-$(PROJECT_NAME)-clean:
 	# remove created images
 	@docker-compose -p $(PROJECT_NAME)_$(HOST_UID) down --remove-orphans --rmi all 2>/dev/null \
@@ -99,7 +122,6 @@ docker-$(PROJECT_NAME)-clean:
 	|| echo 'Image(s) for "$(PROJECT_NAME):$(HOST_USER)" already removed.'
 
 docker-prune: docker-$(PROJECT_NAME)-prune
-
 docker-$(PROJECT_NAME)-prune:
 	docker system prune -af
 
